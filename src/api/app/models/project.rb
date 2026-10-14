@@ -553,16 +553,15 @@ class Project < ApplicationRecord
   end
 
   def cleanup_linking_targets
-    # replace links to this project with links to the "deleted" project
-    find_repos(:linking_target_repositories) do |linking_target_repository|
-      linking_target_repository.release_targets.includes(:target_repository, :link).find_each do |release_target|
-        next unless release_target.link.db_project_id == id
+    # replace release targets of other projects pointing to this project with the "deleted" repository
+    find_repos(:targetlinks) do |release_target|
+      linking_target_repository = release_target.repository
+      next if linking_target_repository.db_project_id == id
 
-        release_target.target_repository = Repository.deleted_instance
-        release_target.save
-        # update backend
-        linking_target_repository.project.write_to_backend
-      end
+      release_target.target_repository = Repository.deleted_instance
+      release_target.save
+      # update backend
+      linking_target_repository.project.write_to_backend
     end
   end
 

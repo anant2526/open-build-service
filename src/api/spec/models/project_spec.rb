@@ -498,6 +498,24 @@ RSpec.describe Project, :vcr do
 
       it { expect(Project).to be_deleted(project.name) }
     end
+
+    context 'when a repository of another project releases into one of its repositories' do
+      let(:admin_user) { create(:admin_user, login: 'Admin') }
+      let(:other_project) { create(:project, name: 'other_project') }
+      let(:target_repository) { create(:repository, name: 'target', project: project) }
+      let(:other_repository) { create(:repository, name: 'other', project: other_project) }
+      let!(:release_target) { create(:release_target, repository: other_repository, target_repository: target_repository) }
+
+      before do
+        # the target repository releasing somewhere itself used to crash the cleanup (issue #12616)
+        create(:release_target, repository: target_repository, target_repository: create(:repository, project: other_project))
+        login admin_user
+        project.destroy!
+      end
+
+      it { expect(Project.exists?(name: project.name)).to be(false) }
+      it { expect(release_target.reload.target_repository).to eq(Repository.deleted_instance) }
+    end
   end
 
   describe '#render_relationships' do
